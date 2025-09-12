@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Phoenix2 Team – Tic-Tac-Toe</title>
+  <title>Phoenix2's Bingo Game</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
     body {
@@ -11,233 +11,110 @@
       background: #0f172a;
       color: #e5e7eb;
       display: flex;
-      justify-content: center;
-      align-items: flex-start;
-      min-height: 100vh;
+      flex-direction: column;
+      align-items: center;
       padding: 24px;
-      gap: 40px;
-    }
-    .app {
-      width: 100%;
-      max-width: 600px;
-      background: #111827;
-      border: 2px solid #f59e0b;
-      border-radius: 16px;
-      padding: 20px;
-      box-shadow: 0 0 20px #f59e0b55;
     }
     h1 {
       font-size: 32px;
-      font-weight: 800;
-      text-align: center;
-      margin-bottom: 10px;
       color: #f59e0b;
-    }
-    h2 {
-      font-size: 20px;
-      font-weight: 600;
-      text-align: center;
       margin-bottom: 20px;
-      color: #60a5fa;
     }
     .board {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 0;
-      border: 3px solid #f59e0b;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+      background: #1f2937;
+      padding: 10px;
       border-radius: 12px;
-      overflow: hidden;
+      border: 2px solid #f59e0b;
     }
     .cell {
-      aspect-ratio: 1;
-      display: grid;
-      place-items: center;
-      font-size: 48px;
-      font-weight: 800;
+      width: 80px;
+      height: 80px;
       background: #0b1220;
-      color: #e5e7eb;
-      border: none;
-      position: relative;
-      cursor: pointer;
-    }
-    .cell::after,
-    .cell::before {
-      content: '';
-      position: absolute;
-      background: #f59e0b;
-      opacity: 0.95;
-    }
-    .cell:nth-child(1)::after, .cell:nth-child(2)::after,
-    .cell:nth-child(4)::after, .cell:nth-child(5)::after,
-    .cell:nth-child(7)::after, .cell:nth-child(8)::after {
-      width: 3px; height: 100%; right: 0; top: 0;
-    }
-    .cell:nth-child(1)::before, .cell:nth-child(2)::before, .cell:nth-child(3)::before,
-    .cell:nth-child(4)::before, .cell:nth-child(5)::before, .cell:nth-child(6)::before {
-      height: 3px; width: 100%; left: 0; bottom: 0;
-    }
-    .cell.X { color: #60a5fa; }
-    .cell.O { color: #22c55e; }
-    .cell.win {
-      color: #f59e0b;
-      background: #1f2937;
-      box-shadow: inset 0 0 0 2px #f59e0b55, 0 0 20px #f59e0b33;
-    }
-    .status {
-      margin-top: 20px;
-      text-align: center;
-      font-size: 18px;
-    }
-    .controls {
+      border: 2px solid #374151;
       display: flex;
+      align-items: center;
       justify-content: center;
-      gap: 10px;
-      margin-bottom: 20px;
-    }
-    input {
-      padding: 8px;
+      font-size: 20px;
+      font-weight: bold;
       border-radius: 8px;
-      border: 1px solid #374151;
-      background: #1f2937;
-      color: #e5e7eb;
+      cursor: pointer;
+      transition: background 0.2s ease, transform 0.1s ease;
+    }
+    .cell:hover {
+      background: #1e293b;
+    }
+    .cell.marked {
+      background: #22c55e;
+      color: #0f172a;
+      box-shadow: 0 0 10px #22c55e88;
+      transform: scale(1.05);
+    }
+    .cell.free {
+      background: #60a5fa;
+      color: #0f172a;
+      cursor: default;
     }
     button {
-      padding: 8px 12px;
+      margin-top: 20px;
+      padding: 10px 16px;
+      font-size: 16px;
       border-radius: 8px;
-      border: 1px solid #f59e0b;
+      border: none;
       background: #f59e0b;
       color: #0f172a;
       font-weight: 600;
       cursor: pointer;
     }
-    .sidebar {
-      max-width: 300px;
-      background: #1f2937;
-      border: 2px solid #374151;
-      border-radius: 12px;
-      padding: 16px;
-      box-shadow: 0 0 10px #00000033;
-    }
-    .sidebar h3 {
-      font-size: 20px;
-      margin-bottom: 12px;
-      color: #f59e0b;
-      text-align: center;
-    }
-    .winner-entry {
-      padding: 6px 0;
-      border-bottom: 1px solid #374151;
-      font-size: 16px;
-    }
   </style>
 </head>
 <body>
-  <div class="app">
-    <h1>Phoenix2 Team</h1>
-    <h2>Tic-Tac-Toe</h2>
-
-    <div class="controls">
-      <input id="p1" type="text" placeholder="Player X name" />
-      <input id="p2" type="text" placeholder="Player O name" />
-      <button onclick="startGame()">Start</button>
-    </div>
-
-    <div id="board" class="board"></div>
-    <div id="status" class="status"></div>
-  </div>
-
-  <div class="sidebar">
-    <h3>🏆 Winners List</h3>
-    <div id="winners"></div>
-  </div>
+  <h1>Bingo Game</h1>
+  <div id="board" class="board"></div>
+  <button onclick="generateBoard()">New Card</button>
 
   <script>
-    let board = Array(9).fill(null);
-    let current = 'X';
-    let locked = false;
-    let names = { X: 'Player X', O: 'Player O' };
-    let winnersList = [];
-
     const boardEl = document.getElementById('board');
-    const statusEl = document.getElementById('status');
-    const winnersEl = document.getElementById('winners');
 
-    function renderBoard() {
+    function generateBoard() {
       boardEl.innerHTML = '';
-      board.forEach((val, i) => {
-        const cell = document.createElement('div');
-        cell.className = 'cell';
-        cell.dataset.index = i;
-        cell.textContent = val ?? '';
-        if (val) cell.classList.add(val);
-        cell.onclick = () => handleClick(i);
-        boardEl.appendChild(cell);
-      });
-      updateStatus();
-    }
+      const columns = {
+        B: getUniqueNumbers(1, 15, 5),
+        I: getUniqueNumbers(16, 30, 5),
+        N: getUniqueNumbers(31, 45, 5),
+        G: getUniqueNumbers(46, 60, 5),
+        O: getUniqueNumbers(61, 75, 5)
+      };
 
-    function handleClick(i) {
-      if (locked || board[i]) return;
-      board[i] = current;
-      const result = checkWinner();
-      if (result.winner) {
-        locked = true;
-        result.line.forEach(idx => boardEl.children[idx].classList.add('win'));
-        const winnerName = names[result.winner];
-        statusEl.textContent = `${winnerName} wins!`;
-        winnersList.push(winnerName);
-        updateWinners();
-      } else if (result.draw) {
-        locked = true;
-        statusEl.textContent = `It's a draw!`;
-        winnersList.push('Draw');
-        updateWinners();
-      } else {
-        current = current === 'X' ? 'O' : 'X';
-        renderBoard();
+      for (let row = 0; row < 5; row++) {
+        ['B', 'I', 'N', 'G', 'O'].forEach((col, colIndex) => {
+          const cell = document.createElement('div');
+          cell.className = 'cell';
+          let value = columns[col][row];
+          if (row === 2 && col === 'N') {
+            cell.textContent = 'FREE';
+            cell.classList.add('free', 'marked');
+          } else {
+            cell.textContent = value;
+            cell.onclick = () => cell.classList.toggle('marked');
+          }
+          boardEl.appendChild(cell);
+        });
       }
     }
 
-    function checkWinner() {
-      const lines = [
-        [0,1,2],[3,4,5],[6,7,8],
-        [0,3,6],[1,4,7],[2,5,8],
-        [0,4,8],[2,4,6]
-      ];
-      for (const line of lines) {
-        const [a,b,c] = line;
-        if (board[a] && board[a] === board[b] && board[a] === board[c]) {
-          return { winner: board[a], line };
-        }
+    function getUniqueNumbers(min, max, count) {
+      const nums = [];
+      while (nums.length < count) {
+        const num = Math.floor(Math.random() * (max - min + 1)) + min;
+        if (!nums.includes(num)) nums.push(num);
       }
-      if (board.every(Boolean)) return { draw: true };
-      return {};
+      return nums;
     }
 
-    function updateStatus() {
-      statusEl.textContent = `${names[current]}'s turn (${current})`;
-    }
-
-    function updateWinners() {
-      winnersEl.innerHTML = '';
-      winnersList.forEach((name, index) => {
-        const entry = document.createElement('div');
-        entry.className = 'winner-entry';
-        entry.textContent = `${index + 1}. ${name}`;
-        winnersEl.appendChild(entry);
-      });
-    }
-
-    function startGame() {
-      names.X = document.getElementById('p1').value || 'Player X';
-      names.O = document.getElementById('p2').value || 'Player O';
-      board = Array(9).fill(null);
-      current = 'X';
-      locked = false;
-      renderBoard();
-    }
-
-    startGame();
+    generateBoard();
   </script>
 </body>
 </html>
