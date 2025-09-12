@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Phoenix2's Bingo Game</title>
+  <title>Phoenix2 Runner with Scoreboard</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
     body {
@@ -18,103 +18,198 @@
     h1 {
       font-size: 32px;
       color: #f59e0b;
-      margin-bottom: 20px;
+      margin-bottom: 10px;
     }
-    .board {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 6px;
+    .game-area {
+      position: relative;
+      width: 100%;
+      max-width: 800px;
+      height: 400px;
       background: #1f2937;
-      padding: 10px;
-      border-radius: 12px;
       border: 2px solid #f59e0b;
+      border-radius: 12px;
+      overflow: hidden;
     }
-    .cell {
-      width: 80px;
-      height: 80px;
-      background: #0b1220;
-      border: 2px solid #374151;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 20px;
-      font-weight: bold;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: background 0.2s ease, transform 0.1s ease;
-    }
-    .cell:hover {
-      background: #1e293b;
-    }
-    .cell.marked {
-      background: #22c55e;
-      color: #0f172a;
-      box-shadow: 0 0 10px #22c55e88;
-      transform: scale(1.05);
-    }
-    .cell.free {
+    .robot {
+      position: absolute;
+      bottom: 0;
+      left: 50px;
+      width: 40px;
+      height: 60px;
       background: #60a5fa;
-      color: #0f172a;
-      cursor: default;
+      border-radius: 8px;
+    }
+    .obstacle {
+      position: absolute;
+      bottom: 0;
+      width: 20px;
+      height: 40px;
+      background: #f59e0b;
+      border-radius: 4px;
+    }
+    .controls {
+      margin-top: 16px;
+      display: flex;
+      gap: 10px;
+    }
+    input {
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid #374151;
+      background: #1f2937;
+      color: #e5e7eb;
     }
     button {
-      margin-top: 20px;
-      padding: 10px 16px;
-      font-size: 16px;
-      border-radius: 8px;
+      padding: 8px 12px;
+      border-radius: 6px;
       border: none;
       background: #f59e0b;
       color: #0f172a;
       font-weight: 600;
       cursor: pointer;
     }
+    .scoreboard {
+      margin-top: 24px;
+      width: 100%;
+      max-width: 400px;
+      background: #1f2937;
+      border: 2px solid #374151;
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .scoreboard h2 {
+      margin-top: 0;
+      color: #22c55e;
+      font-size: 20px;
+    }
+    .score-entry {
+      padding: 6px 0;
+      border-bottom: 1px solid #374151;
+      font-size: 16px;
+    }
   </style>
 </head>
 <body>
-  <h1>Bingo Game</h1>
-  <div id="board" class="board"></div>
-  <button onclick="generateBoard()">New Card</button>
+  <h1>Robot Runner</h1>
+  <div class="controls">
+    <input id="playerName" type="text" placeholder="Enter your name" />
+    <button onclick="startGame()">Start</button>
+  </div>
+  <div class="game-area" id="gameArea">
+    <div class="robot" id="robot"></div>
+  </div>
+  <div class="scoreboard">
+    <h2>🏆 Scoreboard</h2>
+    <div id="scoreList"></div>
+  </div>
 
   <script>
-    const boardEl = document.getElementById('board');
+    const robot = document.getElementById('robot');
+    const gameArea = document.getElementById('gameArea');
+    const scoreList = document.getElementById('scoreList');
+    const playerInput = document.getElementById('playerName');
 
-    function generateBoard() {
-      boardEl.innerHTML = '';
-      const columns = {
-        B: getUniqueNumbers(1, 15, 5),
-        I: getUniqueNumbers(16, 30, 5),
-        N: getUniqueNumbers(31, 45, 5),
-        G: getUniqueNumbers(46, 60, 5),
-        O: getUniqueNumbers(61, 75, 5)
-      };
+    let isJumping = false;
+    let jumpHeight = 100;
+    let gravity = 4;
+    let velocity = 0;
+    let obstacles = [];
+    let gameInterval;
+    let obstacleInterval;
+    let startTime;
+    let playerName = '';
+    let scores = JSON.parse(localStorage.getItem('robotScores') || '[]');
 
-      for (let row = 0; row < 5; row++) {
-        ['B', 'I', 'N', 'G', 'O'].forEach((col, colIndex) => {
-          const cell = document.createElement('div');
-          cell.className = 'cell';
-          let value = columns[col][row];
-          if (row === 2 && col === 'N') {
-            cell.textContent = 'FREE';
-            cell.classList.add('free', 'marked');
-          } else {
-            cell.textContent = value;
-            cell.onclick = () => cell.classList.toggle('marked');
-          }
-          boardEl.appendChild(cell);
-        });
+    function startGame() {
+      if (!playerInput.value.trim()) {
+        alert('Please enter your name');
+        return;
+      }
+      playerName = playerInput.value.trim();
+      resetGame();
+      startTime = Date.now();
+      gameInterval = setInterval(gameLoop, 20);
+      obstacleInterval = setInterval(spawnObstacle, 1500);
+      document.addEventListener('keydown', handleJump);
+    }
+
+    function resetGame() {
+      robot.style.bottom = '0px';
+      velocity = 0;
+      isJumping = false;
+      obstacles.forEach(obs => obs.remove());
+      obstacles = [];
+    }
+
+    function handleJump(e) {
+      if (e.code === 'Space' && !isJumping) {
+        isJumping = true;
+        velocity = jumpHeight;
       }
     }
 
-    function getUniqueNumbers(min, max, count) {
-      const nums = [];
-      while (nums.length < count) {
-        const num = Math.floor(Math.random() * (max - min + 1)) + min;
-        if (!nums.includes(num)) nums.push(num);
-      }
-      return nums;
+    function spawnObstacle() {
+      const obs = document.createElement('div');
+      obs.classList.add('obstacle');
+      obs.style.left = gameArea.offsetWidth + 'px';
+      gameArea.appendChild(obs);
+      obstacles.push(obs);
     }
 
-    generateBoard();
+    function gameLoop() {
+      // Robot jump physics
+      if (isJumping) {
+        let currentBottom = parseInt(robot.style.bottom);
+        velocity -= gravity;
+        robot.style.bottom = Math.max(0, currentBottom + velocity) + 'px';
+        if (currentBottom + velocity <= 0) {
+          isJumping = false;
+          velocity = 0;
+        }
+      }
+
+      // Move obstacles
+      obstacles.forEach((obs, index) => {
+        let left = parseInt(obs.style.left);
+        obs.style.left = (left - 5) + 'px';
+
+        // Collision detection
+        if (left < 90 && left > 50 && parseInt(robot.style.bottom) < 40) {
+          endGame();
+        }
+
+        // Remove off-screen obstacles
+        if (left < -20) {
+          obs.remove();
+          obstacles.splice(index, 1);
+        }
+      });
+    }
+
+    function endGame() {
+      clearInterval(gameInterval);
+      clearInterval(obstacleInterval);
+      document.removeEventListener('keydown', handleJump);
+      const runTime = ((Date.now() - startTime) / 1000).toFixed(2);
+      scores.push({ name: playerName, time: parseFloat(runTime) });
+      scores.sort((a, b) => b.time - a.time);
+      scores = scores.slice(0, 5); // Keep top 5
+      localStorage.setItem('robotScores', JSON.stringify(scores));
+      updateScoreboard();
+      alert(`${playerName}, you lasted ${runTime} seconds!`);
+    }
+
+    function updateScoreboard() {
+      scoreList.innerHTML = '';
+      scores.forEach((entry, index) => {
+        const div = document.createElement('div');
+        div.className = 'score-entry';
+        div.textContent = `${index + 1}. ${entry.name} – ${entry.time.toFixed(2)}s`;
+        scoreList.appendChild(div);
+      });
+    }
+
+    updateScoreboard();
   </script>
 </body>
 </html>
