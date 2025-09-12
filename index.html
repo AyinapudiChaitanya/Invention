@@ -10,10 +10,12 @@
       font-family: system-ui, sans-serif;
       background: #0f172a;
       color: #e5e7eb;
-      display: grid;
-      place-items: center;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
       min-height: 100vh;
       padding: 24px;
+      gap: 40px;
     }
     .app {
       width: 100%;
@@ -108,6 +110,25 @@
       font-weight: 600;
       cursor: pointer;
     }
+    .sidebar {
+      max-width: 300px;
+      background: #1f2937;
+      border: 2px solid #374151;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 0 10px #00000033;
+    }
+    .sidebar h3 {
+      font-size: 20px;
+      margin-bottom: 12px;
+      color: #f59e0b;
+      text-align: center;
+    }
+    .winner-entry {
+      padding: 6px 0;
+      border-bottom: 1px solid #374151;
+      font-size: 16px;
+    }
   </style>
 </head>
 <body>
@@ -125,14 +146,21 @@
     <div id="status" class="status"></div>
   </div>
 
+  <div class="sidebar">
+    <h3>🏆 Winners List</h3>
+    <div id="winners"></div>
+  </div>
+
   <script>
     let board = Array(9).fill(null);
     let current = 'X';
     let locked = false;
     let names = { X: 'Player X', O: 'Player O' };
+    let winnersList = [];
 
     const boardEl = document.getElementById('board');
     const statusEl = document.getElementById('status');
+    const winnersEl = document.getElementById('winners');
 
     function renderBoard() {
       boardEl.innerHTML = '';
@@ -155,10 +183,15 @@
       if (result.winner) {
         locked = true;
         result.line.forEach(idx => boardEl.children[idx].classList.add('win'));
-        statusEl.textContent = `${names[result.winner]} wins!`;
+        const winnerName = names[result.winner];
+        statusEl.textContent = `${winnerName} wins!`;
+        winnersList.push(winnerName);
+        updateWinners();
       } else if (result.draw) {
         locked = true;
         statusEl.textContent = `It's a draw!`;
+        winnersList.push('Draw');
+        updateWinners();
       } else {
         current = current === 'X' ? 'O' : 'X';
         renderBoard();
@@ -185,6 +218,16 @@
       statusEl.textContent = `${names[current]}'s turn (${current})`;
     }
 
+    function updateWinners() {
+      winnersEl.innerHTML = '';
+      winnersList.forEach((name, index) => {
+        const entry = document.createElement('div');
+        entry.className = 'winner-entry';
+        entry.textContent = `${index + 1}. ${name}`;
+        winnersEl.appendChild(entry);
+      });
+    }
+
     function startGame() {
       names.X = document.getElementById('p1').value || 'Player X';
       names.O = document.getElementById('p2').value || 'Player O';
@@ -198,4 +241,3 @@
   </script>
 </body>
 </html>
-
