@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Phoenix2 Runner with Scoreboard</title>
+  <title>Robot Runner</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
     body {
@@ -11,52 +11,47 @@
       background: #0f172a;
       color: #e5e7eb;
       display: flex;
-      flex-direction: column;
-      align-items: center;
+      flex-direction: row;
+      justify-content: center;
+      align-items: flex-start;
       padding: 24px;
+      gap: 24px;
     }
-    h1 {
-      font-size: 32px;
-      color: #f59e0b;
-      margin-bottom: 10px;
-    }
-    .game-area {
-      position: relative;
-      width: 100%;
-      max-width: 800px;
-      height: 400px;
-      background: #1f2937;
+    canvas {
       border: 2px solid #f59e0b;
       border-radius: 12px;
-      overflow: hidden;
+      background: #1f2937;
     }
-    .robot {
-      position: absolute;
-      bottom: 0;
-      left: 50px;
-      width: 40px;
-      height: 60px;
-      background: #60a5fa;
-      border-radius: 8px;
+    .sidebar {
+      max-width: 300px;
+      background: #1f2937;
+      border: 2px solid #374151;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 0 10px #00000033;
     }
-    .obstacle {
-      position: absolute;
-      bottom: 0;
-      width: 20px;
-      height: 40px;
-      background: #f59e0b;
-      border-radius: 4px;
+    .sidebar h2 {
+      font-size: 20px;
+      margin-bottom: 12px;
+      color: #f59e0b;
+      text-align: center;
+    }
+    .score-entry {
+      padding: 6px 0;
+      border-bottom: 1px solid #374151;
+      font-size: 16px;
     }
     .controls {
-      margin-top: 16px;
+      margin-bottom: 16px;
       display: flex;
-      gap: 10px;
+      flex-direction: column;
+      gap: 8px;
     }
     input {
       padding: 8px;
       border-radius: 6px;
       border: 1px solid #374151;
-      background: #1f2937;
+      background: #0b1220;
       color: #e5e7eb;
     }
     button {
@@ -68,57 +63,90 @@
       font-weight: 600;
       cursor: pointer;
     }
-    .scoreboard {
-      margin-top: 24px;
-      width: 100%;
-      max-width: 400px;
-      background: #1f2937;
-      border: 2px solid #374151;
-      border-radius: 12px;
-      padding: 16px;
-    }
-    .scoreboard h2 {
-      margin-top: 0;
-      color: #22c55e;
-      font-size: 20px;
-    }
-    .score-entry {
-      padding: 6px 0;
-      border-bottom: 1px solid #374151;
-      font-size: 16px;
-    }
   </style>
 </head>
 <body>
-  <h1>Robot Runner</h1>
-  <div class="controls">
-    <input id="playerName" type="text" placeholder="Enter your name" />
-    <button onclick="startGame()">Start</button>
-  </div>
-  <div class="game-area" id="gameArea">
-    <div class="robot" id="robot"></div>
-  </div>
-  <div class="scoreboard">
+  <canvas id="game" width="600" height="300"></canvas>
+
+  <div class="sidebar">
+    <div class="controls">
+      <input id="playerName" type="text" placeholder="Enter your name" />
+      <button onclick="startGame()">Start Game</button>
+    </div>
     <h2>🏆 Scoreboard</h2>
     <div id="scoreList"></div>
   </div>
 
   <script>
-    const robot = document.getElementById('robot');
-    const gameArea = document.getElementById('gameArea');
-    const scoreList = document.getElementById('scoreList');
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
     const playerInput = document.getElementById('playerName');
+    const scoreList = document.getElementById('scoreList');
 
-    let isJumping = false;
-    let jumpHeight = 100;
-    let gravity = 4;
-    let velocity = 0;
-    let obstacles = [];
-    let gameInterval;
-    let obstacleInterval;
-    let startTime;
     let playerName = '';
+    let robot = { x: 50, y: 240, w: 30, h: 40, vy: 0, jumping: false };
+    let obstacles = [];
+    let gameRunning = false;
+    let startTime = 0;
     let scores = JSON.parse(localStorage.getItem('robotScores') || '[]');
+
+    function drawRobot() {
+      ctx.fillStyle = '#60a5fa';
+      ctx.fillRect(robot.x, robot.y, robot.w, robot.h);
+    }
+
+    function drawObstacle(ob) {
+      ctx.fillStyle = '#f59e0b';
+      ctx.fillRect(ob.x, ob.y, ob.w, ob.h);
+    }
+
+    function spawnObstacle() {
+      const ob = {
+        x: canvas.width,
+        y: 260,
+        w: 20,
+        h: 40
+      };
+      obstacles.push(ob);
+    }
+
+    function updateGame() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Gravity
+      if (robot.jumping) {
+        robot.vy -= 1.5;
+        robot.y -= robot.vy;
+        if (robot.y >= 240) {
+          robot.y = 240;
+          robot.vy = 0;
+          robot.jumping = false;
+        }
+      }
+
+      // Move obstacles
+      obstacles.forEach((ob, i) => {
+        ob.x -= 4;
+        drawObstacle(ob);
+
+        // Collision
+        if (
+          ob.x < robot.x + robot.w &&
+          ob.x + ob.w > robot.x &&
+          ob.y < robot.y + robot.h &&
+          ob.y + ob.h > robot.y
+        ) {
+          endGame();
+        }
+
+        // Remove off-screen
+        if (ob.x + ob.w < 0) obstacles.splice(i, 1);
+      });
+
+      drawRobot();
+
+      if (gameRunning) requestAnimationFrame(updateGame);
+    }
 
     function startGame() {
       if (!playerInput.value.trim()) {
@@ -126,74 +154,25 @@
         return;
       }
       playerName = playerInput.value.trim();
-      resetGame();
-      startTime = Date.now();
-      gameInterval = setInterval(gameLoop, 20);
-      obstacleInterval = setInterval(spawnObstacle, 1500);
-      document.addEventListener('keydown', handleJump);
-    }
-
-    function resetGame() {
-      robot.style.bottom = '0px';
-      velocity = 0;
-      isJumping = false;
-      obstacles.forEach(obs => obs.remove());
+      robot.y = 240;
+      robot.vy = 0;
+      robot.jumping = false;
       obstacles = [];
-    }
-
-    function handleJump(e) {
-      if (e.code === 'Space' && !isJumping) {
-        isJumping = true;
-        velocity = jumpHeight;
-      }
-    }
-
-    function spawnObstacle() {
-      const obs = document.createElement('div');
-      obs.classList.add('obstacle');
-      obs.style.left = gameArea.offsetWidth + 'px';
-      gameArea.appendChild(obs);
-      obstacles.push(obs);
-    }
-
-    function gameLoop() {
-      // Robot jump physics
-      if (isJumping) {
-        let currentBottom = parseInt(robot.style.bottom);
-        velocity -= gravity;
-        robot.style.bottom = Math.max(0, currentBottom + velocity) + 'px';
-        if (currentBottom + velocity <= 0) {
-          isJumping = false;
-          velocity = 0;
-        }
-      }
-
-      // Move obstacles
-      obstacles.forEach((obs, index) => {
-        let left = parseInt(obs.style.left);
-        obs.style.left = (left - 5) + 'px';
-
-        // Collision detection
-        if (left < 90 && left > 50 && parseInt(robot.style.bottom) < 40) {
-          endGame();
-        }
-
-        // Remove off-screen obstacles
-        if (left < -20) {
-          obs.remove();
-          obstacles.splice(index, 1);
-        }
-      });
+      gameRunning = true;
+      startTime = Date.now();
+      spawnObstacle();
+      setInterval(() => {
+        if (gameRunning) spawnObstacle();
+      }, 1500);
+      updateGame();
     }
 
     function endGame() {
-      clearInterval(gameInterval);
-      clearInterval(obstacleInterval);
-      document.removeEventListener('keydown', handleJump);
+      gameRunning = false;
       const runTime = ((Date.now() - startTime) / 1000).toFixed(2);
       scores.push({ name: playerName, time: parseFloat(runTime) });
       scores.sort((a, b) => b.time - a.time);
-      scores = scores.slice(0, 5); // Keep top 5
+      scores = scores.slice(0, 5);
       localStorage.setItem('robotScores', JSON.stringify(scores));
       updateScoreboard();
       alert(`${playerName}, you lasted ${runTime} seconds!`);
@@ -208,6 +187,20 @@
         scoreList.appendChild(div);
       });
     }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' && !robot.jumping && gameRunning) {
+        robot.jumping = true;
+        robot.vy = 15;
+      }
+    });
+
+    canvas.addEventListener('click', () => {
+      if (!robot.jumping && gameRunning) {
+        robot.jumping = true;
+        robot.vy = 15;
+      }
+    });
 
     updateScoreboard();
   </script>
