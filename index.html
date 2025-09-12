@@ -2,38 +2,70 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Robot Runner</title>
+  <title>Guess the Missing Alphabets</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
     body {
-      margin: 0;
       font-family: system-ui, sans-serif;
       background: #0f172a;
       color: #e5e7eb;
       display: flex;
-      flex-direction: row;
-      justify-content: center;
-      align-items: flex-start;
+      flex-direction: column;
+      align-items: center;
       padding: 24px;
-      gap: 24px;
     }
-    canvas {
+    h1 {
+      font-size: 28px;
+      color: #f59e0b;
+      margin-bottom: 10px;
+    }
+    .game-box {
+      background: #1f2937;
       border: 2px solid #f59e0b;
       border-radius: 12px;
-      background: #1f2937;
+      padding: 20px;
+      width: 100%;
+      max-width: 500px;
+      text-align: center;
     }
-    .sidebar {
-      max-width: 300px;
+    .word {
+      font-size: 32px;
+      letter-spacing: 8px;
+      margin: 20px 0;
+    }
+    input[type="text"] {
+      padding: 8px;
+      font-size: 18px;
+      border-radius: 6px;
+      border: 1px solid #374151;
+      background: #0b1220;
+      color: #e5e7eb;
+      width: 60px;
+      text-align: center;
+    }
+    button {
+      padding: 8px 12px;
+      margin-top: 12px;
+      border-radius: 6px;
+      border: none;
+      background: #f59e0b;
+      color: #0f172a;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .scoreboard {
+      margin-top: 24px;
       background: #1f2937;
       border: 2px solid #374151;
       border-radius: 12px;
       padding: 16px;
-      box-shadow: 0 0 10px #00000033;
+      max-width: 400px;
+      width: 100%;
     }
-    .sidebar h2 {
+    .scoreboard h2 {
+      margin-top: 0;
+      color: #22c55e;
       font-size: 20px;
-      margin-bottom: 12px;
-      color: #f59e0b;
       text-align: center;
     }
     .score-entry {
@@ -44,163 +76,129 @@
     .controls {
       margin-bottom: 16px;
       display: flex;
-      flex-direction: column;
-      gap: 8px;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
     }
-    input {
-      padding: 8px;
-      border-radius: 6px;
-      border: 1px solid #374151;
-      background: #0b1220;
-      color: #e5e7eb;
-    }
-    button {
-      padding: 8px 12px;
-      border-radius: 6px;
-      border: none;
-      background: #f59e0b;
-      color: #0f172a;
-      font-weight: 600;
-      cursor: pointer;
+    input[name="player"] {
+      width: 200px;
     }
   </style>
 </head>
 <body>
-  <canvas id="game" width="600" height="300"></canvas>
+  <h1>Phoenix2's Guess the Missing Alphabets</h1>
+  <div class="controls">
+    <input type="text" name="player" id="playerName" placeholder="Enter your name" />
+    <button onclick="startGame()">Start</button>
+  </div>
 
-  <div class="sidebar">
-    <div class="controls">
-      <input id="playerName" type="text" placeholder="Enter your name" />
-      <button onclick="startGame()">Start Game</button>
-    </div>
+  <div class="game-box" id="gameBox" style="display:none;">
+    <div id="wordDisplay" class="word">_ _ _ _</div>
+    <input type="text" id="guessInput" maxlength="1" />
+    <button onclick="submitGuess()">Guess</button>
+    <div id="feedback" style="margin-top:10px;"></div>
+    <div id="scoreDisplay" style="margin-top:10px;">Score: 0</div>
+  </div>
+
+  <div class="scoreboard">
     <h2>🏆 Scoreboard</h2>
     <div id="scoreList"></div>
   </div>
 
   <script>
-    const canvas = document.getElementById('game');
-    const ctx = canvas.getContext('2d');
-    const playerInput = document.getElementById('playerName');
-    const scoreList = document.getElementById('scoreList');
+    const words = ["APPLE", "GRAPE", "HOUSE", "PLANE", "CHAIR", "BRAVE", "SNAKE", "CLOUD", "MOUSE", "TRAIN"];
+    let currentWord = "";
+    let maskedWord = "";
+    let missingIndices = [];
+    let score = 0;
+    let playerName = "";
+    let scores = JSON.parse(localStorage.getItem("wordScores") || "[]");
 
-    let playerName = '';
-    let robot = { x: 50, y: 240, w: 30, h: 40, vy: 0, jumping: false };
-    let obstacles = [];
-    let gameRunning = false;
-    let startTime = 0;
-    let scores = JSON.parse(localStorage.getItem('robotScores') || '[]');
-
-    function drawRobot() {
-      ctx.fillStyle = '#60a5fa';
-      ctx.fillRect(robot.x, robot.y, robot.w, robot.h);
-    }
-
-    function drawObstacle(ob) {
-      ctx.fillStyle = '#f59e0b';
-      ctx.fillRect(ob.x, ob.y, ob.w, ob.h);
-    }
-
-    function spawnObstacle() {
-      const ob = {
-        x: canvas.width,
-        y: 260,
-        w: 20,
-        h: 40
-      };
-      obstacles.push(ob);
-    }
-
-    function updateGame() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      // Gravity
-      if (robot.jumping) {
-        robot.vy -= 1.5;
-        robot.y -= robot.vy;
-        if (robot.y >= 240) {
-          robot.y = 240;
-          robot.vy = 0;
-          robot.jumping = false;
-        }
-      }
-
-      // Move obstacles
-      obstacles.forEach((ob, i) => {
-        ob.x -= 4;
-        drawObstacle(ob);
-
-        // Collision
-        if (
-          ob.x < robot.x + robot.w &&
-          ob.x + ob.w > robot.x &&
-          ob.y < robot.y + robot.h &&
-          ob.y + ob.h > robot.y
-        ) {
-          endGame();
-        }
-
-        // Remove off-screen
-        if (ob.x + ob.w < 0) obstacles.splice(i, 1);
-      });
-
-      drawRobot();
-
-      if (gameRunning) requestAnimationFrame(updateGame);
-    }
+    const wordDisplay = document.getElementById("wordDisplay");
+    const guessInput = document.getElementById("guessInput");
+    const feedback = document.getElementById("feedback");
+    const scoreDisplay = document.getElementById("scoreDisplay");
+    const scoreList = document.getElementById("scoreList");
 
     function startGame() {
-      if (!playerInput.value.trim()) {
-        alert('Please enter your name');
+      const nameInput = document.getElementById("playerName");
+      if (!nameInput.value.trim()) {
+        alert("Please enter your name");
         return;
       }
-      playerName = playerInput.value.trim();
-      robot.y = 240;
-      robot.vy = 0;
-      robot.jumping = false;
-      obstacles = [];
-      gameRunning = true;
-      startTime = Date.now();
-      spawnObstacle();
-      setInterval(() => {
-        if (gameRunning) spawnObstacle();
-      }, 1500);
-      updateGame();
+      playerName = nameInput.value.trim();
+      score = 0;
+      document.getElementById("gameBox").style.display = "block";
+      nameInput.disabled = true;
+      generateWord();
+      updateScoreboard();
     }
 
-    function endGame() {
-      gameRunning = false;
-      const runTime = ((Date.now() - startTime) / 1000).toFixed(2);
-      scores.push({ name: playerName, time: parseFloat(runTime) });
-      scores.sort((a, b) => b.time - a.time);
-      scores = scores.slice(0, 5);
-      localStorage.setItem('robotScores', JSON.stringify(scores));
-      updateScoreboard();
-      alert(`${playerName}, you lasted ${runTime} seconds!`);
+    function generateWord() {
+      currentWord = words[Math.floor(Math.random() * words.length)];
+      missingIndices = [];
+      maskedWord = currentWord.split("").map((char, i) => {
+        if (Math.random() < 0.4) {
+          missingIndices.push(i);
+          return "_";
+        }
+        return char;
+      }).join("");
+      wordDisplay.textContent = maskedWord.split("").join(" ");
+      feedback.textContent = "";
+      guessInput.value = "";
+      guessInput.focus();
+    }
+
+    function submitGuess() {
+      const guess = guessInput.value.toUpperCase();
+      if (!guess || guess.length !== 1) return;
+
+      let correct = false;
+      let chars = maskedWord.split("");
+      missingIndices.forEach((i) => {
+        if (currentWord[i] === guess && chars[i] === "_") {
+          chars[i] = guess;
+          correct = true;
+        }
+      });
+
+      maskedWord = chars.join("");
+      wordDisplay.textContent = maskedWord.split("").join(" ");
+
+      if (correct) {
+        score += 10;
+        feedback.textContent = "✅ Correct!";
+      } else {
+        score -= 5;
+        feedback.textContent = "❌ Wrong!";
+      }
+
+      scoreDisplay.textContent = `Score: ${score}`;
+      guessInput.value = "";
+      guessInput.focus();
+
+      if (!maskedWord.includes("_")) {
+        setTimeout(() => {
+          generateWord();
+        }, 1000);
+      }
     }
 
     function updateScoreboard() {
-      scoreList.innerHTML = '';
+      scores.push({ name: playerName, score });
+      scores.sort((a, b) => b.score - a.score);
+      scores = scores.slice(0, 5);
+      localStorage.setItem("wordScores", JSON.stringify(scores));
+
+      scoreList.innerHTML = "";
       scores.forEach((entry, index) => {
-        const div = document.createElement('div');
-        div.className = 'score-entry';
-        div.textContent = `${index + 1}. ${entry.name} – ${entry.time.toFixed(2)}s`;
+        const div = document.createElement("div");
+        div.className = "score-entry";
+        div.textContent = `${index + 1}. ${entry.name} – ${entry.score}`;
         scoreList.appendChild(div);
       });
     }
-
-    document.addEventListener('keydown', (e) => {
-      if (e.code === 'Space' && !robot.jumping && gameRunning) {
-        robot.jumping = true;
-        robot.vy = 15;
-      }
-    });
-
-    canvas.addEventListener('click', () => {
-      if (!robot.jumping && gameRunning) {
-        robot.jumping = true;
-        robot.vy = 15;
-      }
-    });
 
     updateScoreboard();
   </script>
