@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Phoenix2 Team – Tic-Tac-Toe</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      background: #0f172a;
+      color: #e5e7eb;
+      display: grid;
+      place-items: center;
+      min-height: 100vh;
+      padding: 24px;
+    }
+    .app {
+      width: 100%;
+      max-width: 600px;
+      background: #111827;
+      border: 2px solid #f59e0b;
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 0 20px #f59e0b55;
+    }
+    h1 {
+      font-size: 32px;
+      font-weight: 800;
+      text-align: center;
+      margin-bottom: 10px;
+      color: #f59e0b;
+    }
+    h2 {
+      font-size: 20px;
+      font-weight: 600;
+      text-align: center;
+      margin-bottom: 20px;
+      color: #60a5fa;
+    }
+    .board {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0;
+      border: 3px solid #f59e0b;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .cell {
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      font-size: 48px;
+      font-weight: 800;
+      background: #0b1220;
+      color: #e5e7eb;
+      border: none;
+      position: relative;
+      cursor: pointer;
+    }
+    .cell::after,
+    .cell::before {
+      content: '';
+      position: absolute;
+      background: #f59e0b;
+      opacity: 0.95;
+    }
+    .cell:nth-child(1)::after, .cell:nth-child(2)::after,
+    .cell:nth-child(4)::after, .cell:nth-child(5)::after,
+    .cell:nth-child(7)::after, .cell:nth-child(8)::after {
+      width: 3px; height: 100%; right: 0; top: 0;
+    }
+    .cell:nth-child(1)::before, .cell:nth-child(2)::before, .cell:nth-child(3)::before,
+    .cell:nth-child(4)::before, .cell:nth-child(5)::before, .cell:nth-child(6)::before {
+      height: 3px; width: 100%; left: 0; bottom: 0;
+    }
+    .cell.X { color: #60a5fa; }
+    .cell.O { color: #22c55e; }
+    .cell.win {
+      color: #f59e0b;
+      background: #1f2937;
+      box-shadow: inset 0 0 0 2px #f59e0b55, 0 0 20px #f59e0b33;
+    }
+    .status {
+      margin-top: 20px;
+      text-align: center;
+      font-size: 18px;
+    }
+    .controls {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    input {
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid #374151;
+      background: #1f2937;
+      color: #e5e7eb;
+    }
+    button {
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid #f59e0b;
+      background: #f59e0b;
+      color: #0f172a;
+      font-weight: 600;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>Phoenix2 Team</h1>
+    <h2>Tic-Tac-Toe</h2>
+
+    <div class="controls">
+      <input id="p1" type="text" placeholder="Player X name" />
+      <input id="p2" type="text" placeholder="Player O name" />
+      <button onclick="startGame()">Start</button>
+    </div>
+
+    <div id="board" class="board"></div>
+    <div id="status" class="status"></div>
+  </div>
+
+  <script>
+    let board = Array(9).fill(null);
+    let current = 'X';
+    let locked = false;
+    let names = { X: 'Player X', O: 'Player O' };
+
+    const boardEl = document.getElementById('board');
+    const statusEl = document.getElementById('status');
+
+    function renderBoard() {
+      boardEl.innerHTML = '';
+      board.forEach((val, i) => {
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        cell.dataset.index = i;
+        cell.textContent = val ?? '';
+        if (val) cell.classList.add(val);
+        cell.onclick = () => handleClick(i);
+        boardEl.appendChild(cell);
+      });
+      updateStatus();
+    }
+
+    function handleClick(i) {
+      if (locked || board[i]) return;
+      board[i] = current;
+      const result = checkWinner();
+      if (result.winner) {
+        locked = true;
+        result.line.forEach(idx => boardEl.children[idx].classList.add('win'));
+        statusEl.textContent = `${names[result.winner]} wins!`;
+      } else if (result.draw) {
+        locked = true;
+        statusEl.textContent = `It's a draw!`;
+      } else {
+        current = current === 'X' ? 'O' : 'X';
+        renderBoard();
+      }
+    }
+
+    function checkWinner() {
+      const lines = [
+        [0,1,2],[3,4,5],[6,7,8],
+        [0,3,6],[1,4,7],[2,5,8],
+        [0,4,8],[2,4,6]
+      ];
+      for (const line of lines) {
+        const [a,b,c] = line;
+        if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+          return { winner: board[a], line };
+        }
+      }
+      if (board.every(Boolean)) return { draw: true };
+      return {};
+    }
+
+    function updateStatus() {
+      statusEl.textContent = `${names[current]}'s turn (${current})`;
+    }
+
+    function startGame() {
+      names.X = document.getElementById('p1').value || 'Player X';
+      names.O = document.getElementById('p2').value || 'Player O';
+      board = Array(9).fill(null);
+      current = 'X';
+      locked = false;
+      renderBoard();
+    }
+
+    startGame();
+  </script>
+</body>
+</html>
