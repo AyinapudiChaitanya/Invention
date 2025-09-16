@@ -1,207 +1,125 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Phoenix2's Guess the Missing Alphabets</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="UTF-8">
+  <title>Tic Tac Toe: Chaitu vs Harish</title>
   <style>
     body {
-      font-family: system-ui, sans-serif;
-      background: #0f172a;
-      color: #e5e7eb;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 24px;
+      font-family: Arial, sans-serif;
+      text-align: center;
     }
     h1 {
-      font-size: 28px;
-      color: #f59e0b;
+      margin-bottom: 5px;
+    }
+    #scoreboard {
+      margin-bottom: 20px;
+    }
+    .board {
+      display: grid;
+      grid-template-columns: repeat(3, 100px);
+      grid-gap: 5px;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    .cell {
+      width: 100px;
+      height: 100px;
+      font-size: 2em;
+      background-color: #f0f0f0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid #ccc;
+    }
+    #message {
+      font-weight: bold;
       margin-bottom: 10px;
     }
-    .game-box {
-      background: #1f2937;
-      border: 2px solid #f59e0b;
-      border-radius: 12px;
-      padding: 20px;
-      width: 100%;
-      max-width: 500px;
-      text-align: center;
-    }
-    .word {
-      font-size: 32px;
-      letter-spacing: 8px;
-      margin: 20px 0;
-    }
-    input[type="text"] {
-      padding: 8px;
-      font-size: 18px;
-      border-radius: 6px;
-      border: 1px solid #374151;
-      background: #0b1220;
-      color: #e5e7eb;
-      width: 60px;
-      text-align: center;
-    }
     button {
-      padding: 8px 12px;
-      margin-top: 12px;
-      border-radius: 6px;
-      border: none;
-      background: #f59e0b;
-      color: #0f172a;
-      font-weight: 600;
-      cursor: pointer;
-    }
-    .scoreboard {
-      margin-top: 24px;
-      background: #1f2937;
-      border: 2px solid #374151;
-      border-radius: 12px;
-      padding: 16px;
-      max-width: 400px;
-      width: 100%;
-    }
-    .scoreboard h2 {
-      margin-top: 0;
-      color: #22c55e;
-      font-size: 20px;
-      text-align: center;
-    }
-    .score-entry {
-      padding: 6px 0;
-      border-bottom: 1px solid #374151;
-      font-size: 16px;
-    }
-    .controls {
-      margin-bottom: 16px;
-      display: flex;
-      gap: 10px;
-      justify-content: center;
-      flex-wrap: wrap;
-    }
-    input[name="player"] {
-      width: 200px;
+      padding: 10px 20px;
+      font-size: 1em;
     }
   </style>
 </head>
 <body>
-  <h1>Phoenix2's Guess the Missing Alphabets</h1>
-  <div class="controls">
-    <input type="text" name="player" id="playerName" placeholder="Enter your name" />
-    <button onclick="startGame()">Start</button>
+
+  <h1>Tic Tac Toe</h1>
+  <div id="scoreboard">
+    <p><strong>Chaitu (X):</strong> <span id="scoreX">0</span> | <strong>Harish (O):</strong> <span id="scoreO">0</span></p>
   </div>
 
-  <div class="game-box" id="gameBox" style="display:none;">
-    <div id="wordDisplay" class="word">_ _ _ _</div>
-    <input type="text" id="guessInput" maxlength="1" />
-    <button onclick="submitGuess()">Guess</button>
-    <div id="feedback" style="margin-top:10px;"></div>
-    <div id="scoreDisplay" style="margin-top:10px;">Score: 0</div>
-  </div>
-
-  <div class="scoreboard">
-    <h2>🏆 Scoreboard</h2>
-    <div id="scoreList"></div>
-  </div>
+  <div id="message">Chaitu's turn</div>
+  <div class="board" id="board"></div>
+  <button onclick="resetGame()">Restart Game</button>
 
   <script>
-    const words = ["APPLE", "GRAPE", "HOUSE", "PLANE", "CHAIR", "BRAVE", "SNAKE", "CLOUD", "MOUSE", "TRAIN"];
-    let currentWord = "";
-    let maskedWord = "";
-    let missingIndices = [];
-    let score = 0;
-    let playerName = "";
-    let scores = JSON.parse(localStorage.getItem("wordScores") || "[]");
+    const board = document.getElementById('board');
+    const message = document.getElementById('message');
+    const scoreX = document.getElementById('scoreX');
+    const scoreO = document.getElementById('scoreO');
 
-    const wordDisplay = document.getElementById("wordDisplay");
-    const guessInput = document.getElementById("guessInput");
-    const feedback = document.getElementById("feedback");
-    const scoreDisplay = document.getElementById("scoreDisplay");
-    const scoreList = document.getElementById("scoreList");
+    let currentPlayer = 'X';
+    let gameActive = true;
+    let scores = { X: 0, O: 0 };
 
-    function startGame() {
-      const nameInput = document.getElementById("playerName");
-      if (!nameInput.value.trim()) {
-        alert("Please enter your name");
-        return;
-      }
-      playerName = nameInput.value.trim();
-      score = 0;
-      document.getElementById("gameBox").style.display = "block";
-      nameInput.disabled = true;
-      generateWord();
-      updateScoreboard();
-    }
+    const cells = Array(9).fill(null);
 
-    function generateWord() {
-      currentWord = words[Math.floor(Math.random() * words.length)];
-      missingIndices = [];
-      maskedWord = currentWord.split("").map((char, i) => {
-        if (Math.random() < 0.4) {
-          missingIndices.push(i);
-          return "_";
-        }
-        return char;
-      }).join("");
-      wordDisplay.textContent = maskedWord.split("").join(" ");
-      feedback.textContent = "";
-      guessInput.value = "";
-      guessInput.focus();
-    }
-
-    function submitGuess() {
-      const guess = guessInput.value.toUpperCase();
-      if (!guess || guess.length !== 1) return;
-
-      let correct = false;
-      let chars = maskedWord.split("");
-      missingIndices.forEach((i) => {
-        if (currentWord[i] === guess && chars[i] === "_") {
-          chars[i] = guess;
-          correct = true;
-        }
+    function renderBoard() {
+      board.innerHTML = '';
+      cells.forEach((value, index) => {
+        const cell = document.createElement('div');
+        cell.classList.add('cell');
+        cell.textContent = value;
+        cell.addEventListener('click', () => handleMove(index));
+        board.appendChild(cell);
       });
+    }
 
-      maskedWord = chars.join("");
-      wordDisplay.textContent = maskedWord.split("").join(" ");
-
-      if (correct) {
-        score += 10;
-        feedback.textContent = "✅ Correct!";
+    function handleMove(index) {
+      if (!gameActive || cells[index]) return;
+      cells[index] = currentPlayer;
+      renderBoard();
+      if (checkWinner(currentPlayer)) {
+        message.textContent = (currentPlayer === 'X' ? 'Chaitu' : 'Harish') + ' wins!';
+        scores[currentPlayer]++;
+        updateScore();
+        gameActive = false;
+      } else if (cells.every(cell => cell)) {
+        message.textContent = 'It\'s a draw!';
+        gameActive = false;
       } else {
-        score -= 5;
-        feedback.textContent = "❌ Wrong!";
-      }
-
-      scoreDisplay.textContent = `Score: ${score}`;
-      guessInput.value = "";
-      guessInput.focus();
-
-      if (!maskedWord.includes("_")) {
-        setTimeout(() => {
-          generateWord();
-        }, 1000);
+        currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+        message.textContent = (currentPlayer === 'X' ? 'Chaitu' : 'Harish') + '\'s turn';
       }
     }
 
-    function updateScoreboard() {
-      scores.push({ name: playerName, score });
-      scores.sort((a, b) => b.score - a.score);
-      scores = scores.slice(0, 5);
-      localStorage.setItem("wordScores", JSON.stringify(scores));
-
-      scoreList.innerHTML = "";
-      scores.forEach((entry, index) => {
-        const div = document.createElement("div");
-        div.className = "score-entry";
-        div.textContent = `${index + 1}. ${entry.name} – ${entry.score}`;
-        scoreList.appendChild(div);
-      });
+    function checkWinner(player) {
+      const winPatterns = [
+        [0,1,2], [3,4,5], [6,7,8],
+        [0,3,6], [1,4,7], [2,5,8],
+        [0,4,8], [2,4,6]
+      ];
+      return winPatterns.some(pattern =>
+        pattern.every(index => cells[index] === player)
+      );
     }
 
-    updateScoreboard();
+    function updateScore() {
+      scoreX.textContent = scores.X;
+      scoreO.textContent = scores.O;
+    }
+
+    function resetGame() {
+      cells.fill(null);
+      currentPlayer = 'X';
+      gameActive = true;
+      message.textContent = 'Chaitu\'s turn';
+      renderBoard();
+    }
+
+    renderBoard();
   </script>
+
 </body>
 </html>
-
