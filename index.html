@@ -1,125 +1,482 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Tic Tac Toe: Chaitu vs Harish</title>
+  <meta charset="UTF-8" />
+  <title>Crossword Puzzle</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      text-align: center;
+    :root{
+      --cell: 48px;
+      --gap: 4px;
+      --black: #111;
+      --accent: #2c7be5;
+      --ok: #28a745;
+      --bad: #dc3545;
+      --muted: #6c757d;
+      --bg:#f7f9fc;
+      --card:#fff;
+      --ink:#1f2937;
     }
-    h1 {
-      margin-bottom: 5px;
+    body{
+      margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      background:var(--bg); color:var(--ink);
+      display:flex; min-height:100vh; align-items:center; justify-content:center;
     }
-    #scoreboard {
-      margin-bottom: 20px;
+    .wrap{
+      width: min(1100px, 95vw);
+      display:grid; grid-template-columns: 1fr 320px; gap:20px;
+      background:var(--card); padding:20px; border-radius:14px; box-shadow:0 10px 30px rgba(0,0,0,.08);
     }
-    .board {
-      display: grid;
-      grid-template-columns: repeat(3, 100px);
-      grid-gap: 5px;
-      justify-content: center;
-      margin-bottom: 20px;
+    header{ grid-column:1/-1; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    h1{ font-size:22px; margin:0; }
+    .toolbar{ display:flex; flex-wrap:wrap; gap:8px; }
+    button{
+      border:1px solid #d0d7e2; background:#fff; color:#0f172a;
+      padding:8px 12px; border-radius:8px; cursor:pointer; font-weight:600;
     }
-    .cell {
-      width: 100px;
-      height: 100px;
-      font-size: 2em;
-      background-color: #f0f0f0;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border: 2px solid #ccc;
+    button.primary{ background:var(--accent); color:#fff; border-color:var(--accent); }
+    button:disabled{ opacity:.5; cursor:not-allowed; }
+    .grid{
+      display:grid; gap:var(--gap);
+      grid-auto-rows: var(--cell);
+      width: fit-content;
+      background:#e8eef7; padding:var(--gap); border-radius:10px;
     }
-    #message {
-      font-weight: bold;
-      margin-bottom: 10px;
+    .cell{
+      width:var(--cell); height:var(--cell); position:relative;
+      background:#fff; border:1px solid #d0d7e2; border-radius:6px;
+      display:flex; align-items:center; justify-content:center;
+      font-size:20px; font-weight:700; text-transform:uppercase;
     }
-    button {
-      padding: 10px 20px;
-      font-size: 1em;
+    .cell input{
+      width:100%; height:100%; border:0; outline:0; background:transparent;
+      text-align:center; font:inherit; color:inherit; text-transform:uppercase;
+    }
+    .cell.black{
+      background:var(--black); border-color:var(--black);
+    }
+    .num{
+      position:absolute; top:3px; left:4px; font-size:10px; color:#555; font-weight:700;
+    }
+    .highlight{ box-shadow:0 0 0 3px rgba(44,123,229,.3) inset; }
+    .focus{ box-shadow:0 0 0 3px rgba(44,123,229,.8) inset; }
+    .correct{ background:#e7f7ee; border-color:#b8e6c7; }
+    .incorrect{ background:#fde8ea; border-color:#f4b6be; }
+    .side{
+      display:flex; flex-direction:column; gap:16px;
+    }
+    .panel{ background:#f8fafc; border:1px solid #e5e7eb; border-radius:10px; padding:12px; }
+    .stats{ display:flex; gap:12px; flex-wrap:wrap; }
+    .stat{ background:#fff; border:1px solid #e5e7eb; border-radius:8px; padding:8px 10px; min-width:110px; }
+    .stat b{ display:block; font-size:12px; color:var(--muted); margin-bottom:4px; }
+    .clues h3{ margin:6px 0; font-size:14px; color:#111827; }
+    .clues ol{ margin:6px 0 0 18px; padding:0; display:grid; gap:6px; }
+    .clues li{ cursor:pointer; }
+    .clues li.active{ background:#e7f0fe; border-radius:6px; padding:2px 6px; }
+    .legend{ font-size:12px; color:#6b7280; }
+    @media (max-width:900px){
+      .wrap{ grid-template-columns:1fr; }
     }
   </style>
 </head>
 <body>
+<div class="wrap">
+  <header>
+    <h1>Crossword Puzzle</h1>
+    <div class="toolbar">
+      <button id="checkBtn" class="primary">Check</button>
+      <button id="revealLetterBtn">Reveal letter</button>
+      <button id="revealWordBtn">Reveal word</button>
+      <button id="clearErrorsBtn">Clear errors</button>
+      <button id="resetBtn">Reset</button>
+    </div>
+  </header>
 
-  <h1>Tic Tac Toe</h1>
-  <div id="scoreboard">
-    <p><strong>Chaitu (X):</strong> <span id="scoreX">0</span> | <strong>Harish (O):</strong> <span id="scoreO">0</span></p>
-  </div>
+  <main>
+    <div id="grid" class="grid" aria-label="Crossword grid"></div>
+    <p class="legend">Tip: Arrow keys move between cells. Space toggles direction. Backspace moves back.</p>
+  </main>
 
-  <div id="message">Chaitu's turn</div>
-  <div class="board" id="board"></div>
-  <button onclick="resetGame()">Restart Game</button>
+  <aside class="side">
+    <div class="panel stats">
+      <div class="stat"><b>Progress</b><span id="progress">0%</span></div>
+      <div class="stat"><b>Mistakes</b><span id="mistakes">0</span></div>
+      <div class="stat"><b>Direction</b><span id="dirLabel">Across</span></div>
+    </div>
 
-  <script>
-    const board = document.getElementById('board');
-    const message = document.getElementById('message');
-    const scoreX = document.getElementById('scoreX');
-    const scoreO = document.getElementById('scoreO');
+    <div class="panel clues">
+      <h3>Across</h3>
+      <ol id="acrossList"></ol>
+    </div>
+    <div class="panel clues">
+      <h3>Down</h3>
+      <ol id="downList"></ol>
+    </div>
+  </aside>
+</div>
 
-    let currentPlayer = 'X';
-    let gameActive = true;
-    let scores = { X: 0, O: 0 };
-
-    const cells = Array(9).fill(null);
-
-    function renderBoard() {
-      board.innerHTML = '';
-      cells.forEach((value, index) => {
-        const cell = document.createElement('div');
-        cell.classList.add('cell');
-        cell.textContent = value;
-        cell.addEventListener('click', () => handleMove(index));
-        board.appendChild(cell);
-      });
+<script>
+/* ========= Puzzle definition =========
+  - Use '#' for black squares.
+  - All letters should be uppercase A-Z.
+*/
+const puzzle = {
+  title: "Mini Crossword",
+  grid: [
+    "CAT#S",
+    "A#ARE",
+    "RAIN#",
+    "#SEAL",
+    "HOMES"
+  ],
+  clues: {
+    across: {
+      1: "Purring pet",
+      4: "Plural letter at row 1, col 5",
+      5: "Exist (plural verb)",
+      6: "What falls in a storm",
+      7: "Sea animal that claps",
+      8: "Houses"
+    },
+    down: {
+      1: "Opposite of out",
+      2: "Sharp cry",
+      3: "Skilled performer",
+      4: "Frozen water",
+      5: "Agreeable response"
     }
+  }
+};
 
-    function handleMove(index) {
-      if (!gameActive || cells[index]) return;
-      cells[index] = currentPlayer;
-      renderBoard();
-      if (checkWinner(currentPlayer)) {
-        message.textContent = (currentPlayer === 'X' ? 'Chaitu' : 'Harish') + ' wins!';
-        scores[currentPlayer]++;
-        updateScore();
-        gameActive = false;
-      } else if (cells.every(cell => cell)) {
-        message.textContent = 'It\'s a draw!';
-        gameActive = false;
-      } else {
-        currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
-        message.textContent = (currentPlayer === 'X' ? 'Chaitu' : 'Harish') + '\'s turn';
+// Derived data structures
+let rows = puzzle.grid.length;
+let cols = puzzle.grid[0].length;
+const gridEl = document.getElementById('grid');
+const acrossListEl = document.getElementById('acrossList');
+const downListEl = document.getElementById('downList');
+const progressEl = document.getElementById('progress');
+const mistakesEl = document.getElementById('mistakes');
+const dirLabel = document.getElementById('dirLabel');
+
+let direction = 'across'; // 'across' or 'down'
+let activeCell = null;     // {r,c}
+let numbering = [];        // same shape as grid with clue numbers or null
+let answers = [];          // letters or null
+let solution = [];         // solution letters or null
+let words = {across:[], down:[]}; // { id, number, cells:[{r,c}], clue }
+
+// Build solution from puzzle.grid
+function initSolution(){
+  solution = [];
+  for(let r=0;r<rows;r++){
+    solution[r] = [];
+    for(let c=0;c<cols;c++){
+      const ch = puzzle.grid[r][c];
+      solution[r][c] = ch === '#' ? null : ch;
+    }
+  }
+}
+
+// Compute numbering and word lists
+function computeNumbering(){
+  numbering = Array.from({length:rows},()=>Array(cols).fill(null));
+  words = {across:[], down:[]};
+  let num = 1;
+
+  // Across
+  for(let r=0;r<rows;r++){
+    for(let c=0;c<cols;c++){
+      if(solution[r][c] !== null && (c===0 || solution[r][c-1]===null)){
+        // start of across word
+        numbering[r][c] = num;
+        const cells=[];
+        let cc=c;
+        while(cc<cols && solution[r][cc]!==null){
+          cells.push({r, c:cc});
+          cc++;
+        }
+        words.across.push({ id:`A${num}`, number:num, dir:'across', cells, clue: puzzle.clues.across[num] ?? '' });
+        num++;
       }
     }
-
-    function checkWinner(player) {
-      const winPatterns = [
-        [0,1,2], [3,4,5], [6,7,8],
-        [0,3,6], [1,4,7], [2,5,8],
-        [0,4,8], [2,4,6]
-      ];
-      return winPatterns.some(pattern =>
-        pattern.every(index => cells[index] === player)
-      );
+  }
+  // Down
+  for(let r=0;r<rows;r++){
+    for(let c=0;c<cols;c++){
+      if(solution[r][c] !== null && (r===0 || solution[r-1][c]===null)){
+        // start of down word
+        if(numbering[r][c]===null){ numbering[r][c]=num; } // may already have number
+        const n = numbering[r][c];
+        const cells=[];
+        let rr=r;
+        while(rr<rows && solution[rr][c]!==null){
+          cells.push({r:rr, c});
+          rr++;
+        }
+        words.down.push({ id:`D${n}`, number:n, dir:'down', cells, clue: puzzle.clues.down[n] ?? '' });
+        if(n===num) num++;
+      }
     }
+  }
+}
 
-    function updateScore() {
-      scoreX.textContent = scores.X;
-      scoreO.textContent = scores.O;
+// Render grid
+function renderGrid(){
+  gridEl.style.gridTemplateColumns = `repeat(${cols}, var(--cell))`;
+  gridEl.innerHTML = '';
+  for(let r=0;r<rows;r++){
+    for(let c=0;c<cols;c++){
+      const cell = document.createElement('div');
+      const isBlack = solution[r][c] === null;
+      cell.className = 'cell' + (isBlack ? ' black' : '');
+      cell.dataset.r = r; cell.dataset.c = c;
+
+      if(isBlack){
+        gridEl.appendChild(cell);
+        continue;
+      }
+
+      // numbering
+      if(numbering[r][c]){
+        const num = document.createElement('div');
+        num.className = 'num';
+        num.textContent = numbering[r][c];
+        cell.appendChild(num);
+      }
+
+      const input = document.createElement('input');
+      input.setAttribute('maxlength','1');
+      input.setAttribute('inputmode','latin');
+      input.value = answers[r][c] || '';
+      input.addEventListener('focus', () => setActive({r,c}));
+      input.addEventListener('input', (e) => onInput(e, {r,c}));
+      input.addEventListener('keydown', (e) => onKey(e, {r,c}));
+      cell.appendChild(input);
+
+      gridEl.appendChild(cell);
     }
+  }
+}
 
-    function resetGame() {
-      cells.fill(null);
-      currentPlayer = 'X';
-      gameActive = true;
-      message.textContent = 'Chaitu\'s turn';
-      renderBoard();
+// Render clues
+function renderClues(){
+  acrossListEl.innerHTML = '';
+  downListEl.innerHTML = '';
+  for(const w of words.across){
+    const li = document.createElement('li');
+    li.innerHTML = `<strong>${w.number}.</strong> ${w.clue || '(no clue)'} (${w.cells.length})`;
+    li.addEventListener('click', ()=>focusWord(w));
+    acrossListEl.appendChild(li);
+    w.li = li;
+  }
+  for(const w of words.down){
+    const li = document.createElement('li');
+    li.innerHTML = `<strong>${w.number}.</strong> ${w.clue || '(no clue)'} (${w.cells.length})`;
+    li.addEventListener('click', ()=>focusWord(w));
+    downListEl.appendChild(li);
+    w.li = li;
+  }
+}
+
+// Set active cell and highlight word
+function setActive(pos){
+  activeCell = pos;
+  clearHighlights();
+  const w = getWordAt(pos, direction);
+  if(w){
+    for(const {r,c} of w.cells){
+      const el = getCellEl(r,c);
+      el.classList.add('highlight');
     }
+    const focusEl = getCellEl(pos.r, pos.c);
+    focusEl.classList.add('focus');
+    w.li?.classList.add('active');
+  }
+  updateDirLabel();
+}
 
-    renderBoard();
-  </script>
+// Helpers
+function getCellEl(r,c){ return gridEl.querySelector(`.cell:not(.black)[data-r="${r}"][data-c="${c}"]`); }
+function getInputEl(r,c){ return getCellEl(r,c)?.querySelector('input'); }
+function clearHighlights(){
+  gridEl.querySelectorAll('.highlight').forEach(e=>e.classList.remove('highlight'));
+  gridEl.querySelectorAll('.focus').forEach(e=>e.classList.remove('focus'));
+  acrossListEl.querySelectorAll('.active').forEach(e=>e.classList.remove('active'));
+  downListEl.querySelectorAll('.active').forEach(e=>e.classList.remove('active'));
+}
+function updateDirLabel(){ dirLabel.textContent = direction[0].toUpperCase()+direction.slice(1); }
 
+// Determine the word at a position for a direction
+function getWordAt(pos, dir){
+  const list = words[dir];
+  for(const w of list){
+    if(w.cells.some(({r,c})=>r===pos.r && c===pos.c)) return w;
+  }
+  return null;
+}
+
+// Move to next cell within a word
+function move(pos, dir, delta){
+  const w = getWordAt(pos, dir);
+  if(!w) return pos;
+  const idx = w.cells.findIndex(({r,c})=>r===pos.r && c===pos.c);
+  let nextIdx = idx + delta;
+  nextIdx = Math.max(0, Math.min(w.cells.length-1, nextIdx));
+  return w.cells[nextIdx];
+}
+
+// Input behavior
+function onInput(e, pos){
+  const val = (e.target.value || '').toUpperCase().replace(/[^A-Z]/g,'');
+  e.target.value = val;
+  answers[pos.r][pos.c] = val || null;
+  if(val){
+    // advance
+    const next = move(pos, direction, 1);
+    setActive(next);
+    getInputEl(next.r, next.c)?.focus();
+  }
+  updateProgress();
+}
+
+// Keyboard navigation
+function onKey(e, pos){
+  if(e.key === 'Backspace' && !e.target.value){
+    const prev = move(pos, direction, -1);
+    if(prev.r !== pos.r || prev.c !== pos.c){
+      e.preventDefault();
+      setActive(prev);
+      const el = getInputEl(prev.r, prev.c);
+      el.focus(); el.select();
+    }
+  } else if(e.key === 'ArrowRight'){ e.preventDefault(); direction='across'; setActive(move(pos,'across',1)); getInputEl(activeCell.r, activeCell.c)?.focus();
+  } else if(e.key === 'ArrowLeft'){ e.preventDefault(); direction='across'; setActive(move(pos,'across',-1)); getInputEl(activeCell.r, activeCell.c)?.focus();
+  } else if(e.key === 'ArrowDown'){ e.preventDefault(); direction='down'; setActive(move(pos,'down',1)); getInputEl(activeCell.r, activeCell.c)?.focus();
+  } else if(e.key === 'ArrowUp'){ e.preventDefault(); direction='down'; setActive(move(pos,'down',-1)); getInputEl(activeCell.r, activeCell.c)?.focus();
+  } else if(e.key === ' '){ e.preventDefault(); direction = direction==='across' ? 'down' : 'across'; setActive(pos);
+  }
+}
+
+// Progress and mistakes
+function updateProgress(){
+  let filled = 0, total = 0;
+  for(let r=0;r<rows;r++){
+    for(let c=0;c<cols;c++){
+      if(solution[r][c]!==null){
+        total++;
+        if(answers[r][c]) filled++;
+      }
+    }
+  }
+  const pct = total ? Math.round(100*filled/total) : 0;
+  progressEl.textContent = pct + '%';
+}
+
+// Checking and reveal
+let mistakes = 0;
+function checkAnswers(){
+  let foundError = false;
+  for(let r=0;r<rows;r++){
+    for(let c=0;c<cols;c++){
+      if(solution[r][c]===null) continue;
+      const cellEl = getCellEl(r,c);
+      cellEl.classList.remove('correct','incorrect');
+      const val = answers[r][c];
+      if(!val) continue;
+      if(val === solution[r][c]){
+        cellEl.classList.add('correct');
+      } else {
+        cellEl.classList.add('incorrect');
+        foundError = true;
+      }
+    }
+  }
+  if(foundError){ mistakes++; mistakesEl.textContent = mistakes; }
+  // clear marks after a moment
+  setTimeout(()=>{
+    gridEl.querySelectorAll('.correct').forEach(e=>e.classList.remove('correct'));
+    gridEl.querySelectorAll('.incorrect').forEach(e=>e.classList.remove('incorrect'));
+  }, 900);
+}
+
+function revealLetter(){
+  if(!activeCell) return;
+  const {r,c} = activeCell;
+  if(solution[r][c]===null) return;
+  answers[r][c] = solution[r][c];
+  const el = getInputEl(r,c);
+  el.value = solution[r][c];
+  updateProgress();
+  // move ahead
+  const next = move(activeCell, direction, 1);
+  setActive(next);
+  getInputEl(next.r, next.c)?.focus();
+}
+
+function revealWord(){
+  if(!activeCell) return;
+  const w = getWordAt(activeCell, direction);
+  for(const {r,c} of w.cells){
+    answers[r][c] = solution[r][c];
+    const el = getInputEl(r,c);
+    el.value = solution[r][c];
+  }
+  updateProgress();
+}
+
+// Reset / clear errors
+function clearErrors(){
+  for(let r=0;r<rows;r++){
+    for(let c=0;c<cols;c++){
+      const cellEl = getCellEl(r,c);
+      cellEl?.classList.remove('correct','incorrect');
+    }
+  }
+}
+function resetPuzzle(){
+  answers = Array.from({length:rows},()=>Array(cols).fill(null));
+  mistakes = 0; mistakesEl.textContent = '0';
+  renderGrid();
+  renderClues();
+  // focus first non-black cell
+  outer: for(let r=0;r<rows;r++){
+    for(let c=0;c<cols;c++){
+      if(solution[r][c]!==null){
+        setActive({r,c});
+        getInputEl(r,c)?.focus();
+        break outer;
+      }
+    }
+  }
+  updateProgress();
+}
+
+// Wire buttons
+document.getElementById('checkBtn').addEventListener('click', checkAnswers);
+document.getElementById('revealLetterBtn').addEventListener('click', revealLetter);
+document.getElementById('revealWordBtn').addEventListener('click', revealWord);
+document.getElementById('clearErrorsBtn').addEventListener('click', clearErrors);
+document.getElementById('resetBtn').addEventListener('click', resetPuzzle);
+
+// Initialize
+(function start(){
+  initSolution();
+  computeNumbering();
+  answers = Array.from({length:rows},()=>Array(cols).fill(null));
+  renderGrid();
+  renderClues();
+  // set initial focus
+  for(let r=0;r<rows;r++){
+    for(let c=0;c<cols;c++){
+      if(solution[r][c]!==null){
+        setActive({r,c});
+        getInputEl(r,c)?.focus();
+        updateProgress();
+        return;
+      }
+    }
+  }
+})();
+</script>
 </body>
 </html>
